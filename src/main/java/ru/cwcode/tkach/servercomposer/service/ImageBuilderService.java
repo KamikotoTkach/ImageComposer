@@ -64,10 +64,6 @@ public class ImageBuilderService {
     JibContainer container = builder.containerize(deploy.containerizer(image)
                                                         .addEventHandler(LogEvent.class, logEvent -> System.out.println(logEvent.getLevel() + ": " + logEvent.getMessage())));
     
-    if (container.isImagePushed()) {
-      log.info("Server %s built".formatted(image));
-    } else {
-      log.warning("Cant built server %s".formatted(image));
-    }
+    log.info("Image %s built".formatted(image));
   }
 }
