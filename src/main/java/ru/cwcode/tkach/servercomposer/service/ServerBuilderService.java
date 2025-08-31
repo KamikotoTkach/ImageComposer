@@ -13,6 +13,13 @@ public class ServerBuilderService {
   public void build() {
     log.info("Building servers");
     
-    serversConfig.getServers().forEach(imageBuilderService::build);
+    serversConfig.getServers().forEach((image, server) -> {
+      try {
+        imageBuilderService.build(image, server);
+      } catch (Exception e) {
+        log.warning("Exception during image %s build: %s".formatted(image, e.getMessage()));
+        e.printStackTrace();
+      }
+    });
   }
 }
