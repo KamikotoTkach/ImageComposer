@@ -1,18 +1,20 @@
 package ru.cwcode.tkach.servercomposer.data.deploy;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.google.cloud.tools.jib.api.Containerizer;
 import com.google.cloud.tools.jib.api.RegistryImage;
 import lombok.SneakyThrows;
+import ru.cwcode.tkach.servercomposer.data.CredentialData;
 
 public class RepositoryDeploy implements Deploy {
-  String username;
-  String password;
+  @JsonUnwrapped
+  CredentialData credentialData;
   
   @SneakyThrows
   @Override
   public Containerizer containerizer(String image) {
     RegistryImage registryImage = RegistryImage.named(image);
-    if (username != null && password != null) registryImage.addCredential(username, password);
+    if (credentialData.getUsername() != null && credentialData.getPassword() != null) registryImage.addCredential(credentialData.getUsername(), credentialData.getPassword());
     
     return Containerizer.to(registryImage);
   }

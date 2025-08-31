@@ -10,6 +10,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import lombok.SneakyThrows;
 import org.yaml.snakeyaml.LoaderOptions;
 import ru.cwcode.tkach.servercomposer.config.ComponentConfig;
+import ru.cwcode.tkach.servercomposer.config.CredentialsConfig;
 import ru.cwcode.tkach.servercomposer.config.DeployConfig;
 import ru.cwcode.tkach.servercomposer.config.ServersConfig;
 
@@ -48,6 +49,11 @@ public class ConfigLoaderService {
   @SneakyThrows
   public DeployConfig getDeployConfig() {
     return mapper.readValue(Path.of(basedir, "deploy.yml").toFile(), DeployConfig.class);
+  }
+  
+  @SneakyThrows
+  public CredentialsConfig getCredentialsConfig() {
+    return mapper.readValue(Path.of(basedir, "credentials.yml").toFile(), CredentialsConfig.class);
   }
   
   @SneakyThrows

@@ -4,6 +4,7 @@ import com.google.cloud.tools.jib.api.*;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
+import ru.cwcode.tkach.servercomposer.config.CredentialsConfig;
 import ru.cwcode.tkach.servercomposer.config.DeployConfig;
 import ru.cwcode.tkach.servercomposer.data.Component;
 import ru.cwcode.tkach.servercomposer.data.ComponentItem;
@@ -21,6 +22,7 @@ import java.util.Set;
 public class ImageBuilderService {
   final DeployConfig deployConfig;
   final DependencyResolverService dependencyResolverService;
+  final CredentialsService credentialsService;
   final String basedir;
   
   @SneakyThrows
@@ -33,7 +35,13 @@ public class ImageBuilderService {
     if (server.getImage().startsWith("local/")) {
       builder = Jib.from(DockerDaemonImage.named(server.getImage().substring("local/".length())));
     } else {
-      builder = Jib.from(ImageReference.parse(server.getImage()));
+      RegistryImage registryImage = RegistryImage.named(ImageReference.parse(server.getImage()));
+      
+      credentialsService.getCredentialByImage(server.getImage()).ifPresent(credentialData -> {
+        registryImage.addCredential(credentialData.getUsername(), credentialData.getPassword());
+      });
+      
+      builder = Jib.from(registryImage);
     }
     
     builder

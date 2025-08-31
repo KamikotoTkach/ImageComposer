@@ -2,12 +2,10 @@ package ru.cwcode.tkach.servercomposer;
 
 import lombok.extern.java.Log;
 import ru.cwcode.tkach.servercomposer.config.ComponentConfig;
+import ru.cwcode.tkach.servercomposer.config.CredentialsConfig;
 import ru.cwcode.tkach.servercomposer.config.DeployConfig;
 import ru.cwcode.tkach.servercomposer.config.ServersConfig;
-import ru.cwcode.tkach.servercomposer.service.ConfigLoaderService;
-import ru.cwcode.tkach.servercomposer.service.DependencyResolverService;
-import ru.cwcode.tkach.servercomposer.service.ImageBuilderService;
-import ru.cwcode.tkach.servercomposer.service.ServerBuilderService;
+import ru.cwcode.tkach.servercomposer.service.*;
 
 import java.nio.file.Path;
 
@@ -24,9 +22,11 @@ public class ServerComposer {
     ComponentConfig componentConfig = configLoaderService.getComponentConfig();
     ServersConfig serversConfig = configLoaderService.getServersConfig();
     DeployConfig deployConfig = configLoaderService.getDeployConfig();
+    CredentialsConfig credentialsConfig = configLoaderService.getCredentialsConfig();
     
+    CredentialsService credentialsService = new CredentialsService(credentialsConfig);
     DependencyResolverService dependencyResolverService = new DependencyResolverService(componentConfig);
-    ImageBuilderService imageBuilderService = new ImageBuilderService(deployConfig, dependencyResolverService, basedir);
+    ImageBuilderService imageBuilderService = new ImageBuilderService(deployConfig, dependencyResolverService, credentialsService, basedir);
     ServerBuilderService serverBuilderService = new ServerBuilderService(serversConfig, imageBuilderService);
     
     serverBuilderService.build();
