@@ -1,10 +1,10 @@
-package ru.cwcode.tkach.servercomposer.data.deploy;
+package ru.cwcode.tkach.imagecomposer.data.deploy;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.google.cloud.tools.jib.api.Containerizer;
 import com.google.cloud.tools.jib.api.RegistryImage;
 import lombok.SneakyThrows;
-import ru.cwcode.tkach.servercomposer.data.CredentialData;
+import ru.cwcode.tkach.imagecomposer.data.CredentialData;
 
 public class RepositoryDeploy implements Deploy {
   @JsonUnwrapped

@@ -1,15 +1,14 @@
-package ru.cwcode.tkach.servercomposer.service;
+package ru.cwcode.tkach.imagecomposer.service;
 
 import com.google.cloud.tools.jib.api.*;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
-import ru.cwcode.tkach.servercomposer.config.CredentialsConfig;
-import ru.cwcode.tkach.servercomposer.config.DeployConfig;
-import ru.cwcode.tkach.servercomposer.data.Component;
-import ru.cwcode.tkach.servercomposer.data.ComponentItem;
-import ru.cwcode.tkach.servercomposer.data.Server;
-import ru.cwcode.tkach.servercomposer.data.deploy.Deploy;
+import ru.cwcode.tkach.imagecomposer.config.DeployConfig;
+import ru.cwcode.tkach.imagecomposer.data.Component;
+import ru.cwcode.tkach.imagecomposer.data.ComponentItem;
+import ru.cwcode.tkach.imagecomposer.data.Image;
+import ru.cwcode.tkach.imagecomposer.data.deploy.Deploy;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -26,18 +25,18 @@ public class ImageBuilderService {
   final String basedir;
   
   @SneakyThrows
-  public void build(String image, Server server) {
-    log.info("Building server " + image);
+  public void build(String targetImage, Image image) {
+    log.info("Building image " + targetImage);
     
-    Set<Component> components = dependencyResolverService.resolve(server);
+    Set<Component> components = dependencyResolverService.resolve(image);
     
     JibContainerBuilder builder;
-    if (server.getImage().startsWith("local/")) {
-      builder = Jib.from(DockerDaemonImage.named(server.getImage().substring("local/".length())));
+    if (image.getImage().startsWith("local/")) {
+      builder = Jib.from(DockerDaemonImage.named(image.getImage().substring("local/".length())));
     } else {
-      RegistryImage registryImage = RegistryImage.named(ImageReference.parse(server.getImage()));
+      RegistryImage registryImage = RegistryImage.named(ImageReference.parse(image.getImage()));
       
-      credentialsService.getCredentialByImage(server.getImage()).ifPresent(credentialData -> {
+      credentialsService.getCredentialByImage(image.getImage()).ifPresent(credentialData -> {
         registryImage.addCredential(credentialData.getUsername(), credentialData.getPassword());
       });
       
@@ -45,10 +44,10 @@ public class ImageBuilderService {
     }
     
     builder
-      .setEnvironment(server.getEnv())
-      .setEntrypoint(server.getEntrypoint())
+      .setEnvironment(image.getEnv())
+      .setEntrypoint(image.getEntrypoint())
       .setCreationTime(Instant.now())
-      .setExposedPorts(Ports.parse(server.getExpose()));
+      .setExposedPorts(Ports.parse(image.getExpose()));
     
     List<ComponentItem> files = components.stream()
                                           .flatMap(x -> x.getItems().stream())
@@ -59,11 +58,11 @@ public class ImageBuilderService {
       builder.addLayer(List.of(Path.of(basedir, file.getFrom())), file.getTo());
     }
     
-    Deploy deploy = deployConfig.getDeploys().get(server.getDeploy());
+    Deploy deploy = deployConfig.getDeploys().get(image.getDeploy());
     
-    JibContainer container = builder.containerize(deploy.containerizer(image)
+    JibContainer container = builder.containerize(deploy.containerizer(targetImage)
                                                         .addEventHandler(LogEvent.class, logEvent -> System.out.println(logEvent.getLevel() + ": " + logEvent.getMessage())));
     
-    log.info("Image %s built".formatted(image));
+    log.info("Image %s built".formatted(targetImage));
   }
 }

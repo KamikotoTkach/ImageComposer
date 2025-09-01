@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.servercomposer.data;
+package ru.cwcode.tkach.imagecomposer.data;
 
 import lombok.Getter;
 

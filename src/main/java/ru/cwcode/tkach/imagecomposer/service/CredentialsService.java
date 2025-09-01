@@ -1,8 +1,8 @@
-package ru.cwcode.tkach.servercomposer.service;
+package ru.cwcode.tkach.imagecomposer.service;
 
 import lombok.RequiredArgsConstructor;
-import ru.cwcode.tkach.servercomposer.config.CredentialsConfig;
-import ru.cwcode.tkach.servercomposer.data.CredentialData;
+import ru.cwcode.tkach.imagecomposer.config.CredentialsConfig;
+import ru.cwcode.tkach.imagecomposer.data.CredentialData;
 
 import java.util.Map;
 import java.util.Optional;

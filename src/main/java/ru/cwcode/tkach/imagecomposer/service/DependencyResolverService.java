@@ -1,9 +1,9 @@
-package ru.cwcode.tkach.servercomposer.service;
+package ru.cwcode.tkach.imagecomposer.service;
 
 import lombok.RequiredArgsConstructor;
-import ru.cwcode.tkach.servercomposer.config.ComponentConfig;
-import ru.cwcode.tkach.servercomposer.data.Component;
-import ru.cwcode.tkach.servercomposer.data.Server;
+import ru.cwcode.tkach.imagecomposer.config.ComponentConfig;
+import ru.cwcode.tkach.imagecomposer.data.Component;
+import ru.cwcode.tkach.imagecomposer.data.Image;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -25,7 +25,7 @@ public class DependencyResolverService {
     return resolve(resolvedDependencies);
   }
   
-  public Set<Component> resolve(Server server) {
-    return resolve(server.getComponents().stream().map(e -> componentConfig.getComponents().get(e)).collect(Collectors.toSet()));
+  public Set<Component> resolve(Image image) {
+    return resolve(image.getComponents().stream().map(e -> componentConfig.getComponents().get(e)).collect(Collectors.toSet()));
   }
 }

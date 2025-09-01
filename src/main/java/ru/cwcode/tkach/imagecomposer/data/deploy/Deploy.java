@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.servercomposer.data.deploy;
+package ru.cwcode.tkach.imagecomposer.data.deploy;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

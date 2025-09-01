@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.servercomposer.data;
+package ru.cwcode.tkach.imagecomposer.data;
 
 import lombok.Getter;
 
@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Getter
-public class Server {
+public class Image {
   String image;
   Set<String> components = Set.of();
   Map<String, String> env = Map.of();

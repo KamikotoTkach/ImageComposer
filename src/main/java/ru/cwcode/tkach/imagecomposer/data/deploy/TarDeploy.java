@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.servercomposer.data.deploy;
+package ru.cwcode.tkach.imagecomposer.data.deploy;
 
 import com.google.cloud.tools.jib.api.Containerizer;
 import com.google.cloud.tools.jib.api.TarImage;

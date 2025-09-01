@@ -1,4 +1,4 @@
-package ru.cwcode.tkach.servercomposer.service;
+package ru.cwcode.tkach.imagecomposer.service;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -9,10 +9,10 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import lombok.SneakyThrows;
 import org.yaml.snakeyaml.LoaderOptions;
-import ru.cwcode.tkach.servercomposer.config.ComponentConfig;
-import ru.cwcode.tkach.servercomposer.config.CredentialsConfig;
-import ru.cwcode.tkach.servercomposer.config.DeployConfig;
-import ru.cwcode.tkach.servercomposer.config.ServersConfig;
+import ru.cwcode.tkach.imagecomposer.config.ComponentConfig;
+import ru.cwcode.tkach.imagecomposer.config.CredentialsConfig;
+import ru.cwcode.tkach.imagecomposer.config.DeployConfig;
+import ru.cwcode.tkach.imagecomposer.config.ImagesConfig;
 
 import java.nio.file.Path;
 
@@ -57,7 +57,7 @@ public class ConfigLoaderService {
   }
   
   @SneakyThrows
-  public ServersConfig getServersConfig() {
-    return mapper.readValue(Path.of(basedir, "servers.yml").toFile(), ServersConfig.class);
+  public ImagesConfig getImagesConfig() {
+    return mapper.readValue(Path.of(basedir, "images.yml").toFile(), ImagesConfig.class);
   }
 }
