@@ -35,6 +35,8 @@ images:
     components: [app]
     entrypoint: ["java", "-jar", "/app/app.jar"]
     expose: ["8080/tcp"]
+    env:
+      env-key: env-value
     deploy: local
 ```
 
