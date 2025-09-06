@@ -29,14 +29,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import lombok.SneakyThrows;
+import lombok.extern.java.Log;
 import org.yaml.snakeyaml.LoaderOptions;
-import ru.cwcode.tkach.imagecomposer.config.ComponentConfig;
-import ru.cwcode.tkach.imagecomposer.config.CredentialsConfig;
-import ru.cwcode.tkach.imagecomposer.config.DeployConfig;
-import ru.cwcode.tkach.imagecomposer.config.ImagesConfig;
+import ru.cwcode.tkach.imagecomposer.config.*;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
+@Log
 public class ConfigLoaderService {
   protected final ObjectMapper mapper;
   protected final String basedir;
@@ -68,6 +71,11 @@ public class ConfigLoaderService {
   }
   
   @SneakyThrows
+  public LastBuildConfig getLastBuildConfig() {
+    return mapper.readValue(Path.of(basedir, "last_build.yml").toFile(), LastBuildConfig.class);
+  }
+  
+  @SneakyThrows
   public DeployConfig getDeployConfig() {
     return mapper.readValue(Path.of(basedir, "deploy.yml").toFile(), DeployConfig.class);
   }
@@ -80,5 +88,13 @@ public class ConfigLoaderService {
   @SneakyThrows
   public ImagesConfig getImagesConfig() {
     return mapper.readValue(Path.of(basedir, "images.yml").toFile(), ImagesConfig.class);
+  }
+  
+  public void setLastBuildConfig(LastBuildConfig lastBuildConfig) {
+    try {
+      Files.write(Path.of(basedir, "last_build.yml"), mapper.writeValueAsString(lastBuildConfig).getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING);
+    } catch (IOException e) {
+      log.warning("Cannot save last build config: " + e.getMessage());
+    }
   }
 }

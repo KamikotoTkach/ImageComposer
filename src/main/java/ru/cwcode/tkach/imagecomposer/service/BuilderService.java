@@ -24,19 +24,44 @@ package ru.cwcode.tkach.imagecomposer.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import ru.cwcode.tkach.imagecomposer.config.ImagesConfig;
+import ru.cwcode.tkach.imagecomposer.data.Image;
 
 @RequiredArgsConstructor
 @Log
 public class BuilderService {
   final ImagesConfig imagesConfig;
   final ImageBuilderService imageBuilderService;
+  final UpdateCheckerService updateCheckerService;
   
-  public void build() {
+  public void buildAll() {
     log.info("Building images");
     
     imagesConfig.getImages().forEach((targetImage, image) -> {
       try {
         imageBuilderService.build(targetImage, image);
+        updateCheckerService.updateBuildTime(targetImage);
+      } catch (Exception e) {
+        log.warning("Exception during image %s build: %s".formatted(targetImage, e.getMessage()));
+        e.printStackTrace();
+      }
+    });
+  }
+  
+  public void build(String name) {
+    Image image = imagesConfig.getImages().get(name);
+    
+    imageBuilderService.build(name, image);
+    
+    updateCheckerService.updateBuildTime(name);
+  }
+  
+  public void buildUpdated() {
+    imagesConfig.getImages().forEach((targetImage, image) -> {
+      try {
+        if (updateCheckerService.isUpdated(targetImage, image)) {
+          imageBuilderService.build(targetImage, image);
+          updateCheckerService.updateBuildTime(targetImage);
+        }
       } catch (Exception e) {
         log.warning("Exception during image %s build: %s".formatted(targetImage, e.getMessage()));
         e.printStackTrace();

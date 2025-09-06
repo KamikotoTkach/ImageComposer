@@ -37,8 +37,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
-@RequiredArgsConstructor
 @Log
+@RequiredArgsConstructor
 public class ImageBuilderService {
   final DeployConfig deployConfig;
   final DependencyResolverService dependencyResolverService;

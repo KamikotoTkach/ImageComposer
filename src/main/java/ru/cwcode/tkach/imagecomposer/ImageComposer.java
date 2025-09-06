@@ -21,35 +21,140 @@
 
 package ru.cwcode.tkach.imagecomposer;
 
+import lombok.Getter;
 import lombok.extern.java.Log;
-import ru.cwcode.tkach.imagecomposer.config.ComponentConfig;
-import ru.cwcode.tkach.imagecomposer.config.CredentialsConfig;
-import ru.cwcode.tkach.imagecomposer.config.DeployConfig;
-import ru.cwcode.tkach.imagecomposer.config.ImagesConfig;
+import org.apache.commons.cli.*;
+import org.apache.commons.cli.help.HelpFormatter;
+import ru.cwcode.tkach.imagecomposer.config.*;
 import ru.cwcode.tkach.imagecomposer.service.*;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
 @Log
+@Getter
 public class ImageComposer {
+  ConfigLoaderService configLoaderService;
+  LastBuildConfig lastBuildConfig;
+  ComponentConfig componentConfig;
+  ImagesConfig imagesConfig;
+  DeployConfig deployConfig;
+  CredentialsConfig credentialsConfig;
+  CredentialsService credentialsService;
+  DependencyResolverService dependencyResolverService;
+  ImageBuilderService imageBuilderService;
+  BuilderService builderService;
+  UpdateCheckerService updateCheckerService;
+  
+  String workingDirectory;
+  
   public static void main(String[] args) {
-    String basedir = "";
-    if (args.length == 1) basedir = args[0];
+    try {
+      new ImageComposer().start(args);
+    } catch (Throwable e) {
+      log.severe("Exception: " + e.getMessage());
+      e.printStackTrace();
+      System.exit(1);
+    }
+  }
+  
+  public void setup() {
+    configLoaderService = new ConfigLoaderService(workingDirectory);
     
-    log.info("Working dir: " + Path.of(basedir).toAbsolutePath());
+    lastBuildConfig = configLoaderService.getLastBuildConfig();
+    componentConfig = configLoaderService.getComponentConfig();
+    imagesConfig = configLoaderService.getImagesConfig();
+    deployConfig = configLoaderService.getDeployConfig();
+    credentialsConfig = configLoaderService.getCredentialsConfig();
     
-    ConfigLoaderService configLoaderService = new ConfigLoaderService(basedir);
+    credentialsService = new CredentialsService(credentialsConfig);
+    dependencyResolverService = new DependencyResolverService(componentConfig);
+    imageBuilderService = new ImageBuilderService(deployConfig, dependencyResolverService, credentialsService, workingDirectory);
+    updateCheckerService = new UpdateCheckerService(dependencyResolverService, lastBuildConfig, workingDirectory);
+    builderService = new BuilderService(imagesConfig, imageBuilderService, updateCheckerService);
+  }
+  
+  private void start(String[] args) throws IOException, org.apache.commons.cli.ParseException {
+    workingDirectory = Path.of("").toAbsolutePath().toString();
     
-    ComponentConfig componentConfig = configLoaderService.getComponentConfig();
-    ImagesConfig imagesConfig = configLoaderService.getImagesConfig();
-    DeployConfig deployConfig = configLoaderService.getDeployConfig();
-    CredentialsConfig credentialsConfig = configLoaderService.getCredentialsConfig();
+    Options options = new Options();
     
-    CredentialsService credentialsService = new CredentialsService(credentialsConfig);
-    DependencyResolverService dependencyResolverService = new DependencyResolverService(componentConfig);
-    ImageBuilderService imageBuilderService = new ImageBuilderService(deployConfig, dependencyResolverService, credentialsService, basedir);
-    BuilderService builderService = new BuilderService(imagesConfig, imageBuilderService);
+    options.addOption(Option.builder("d")
+                            .longOpt("directory")
+                            .hasArg()
+                            .argName("path")
+                            .desc("Working directory")
+                            .get());
     
-    builderService.build();
+    options.addOption(Option.builder("h")
+                            .longOpt("help")
+                            .desc("Show help")
+                            .get());
+    
+    CommandLineParser parser = new DefaultParser();
+    CommandLine cmd = parser.parse(options, args);
+    
+    if (cmd.hasOption("help")) {
+      HelpFormatter.builder().get().printHelp("java -jar app.jar build-all|build-updated|build <image>", null, options, null, false);
+      return;
+    }
+    
+    if (cmd.hasOption("directory")) {
+      workingDirectory = cmd.getOptionValue("directory");
+    }
+    
+    System.out.println("Working directory: " + workingDirectory);
+    
+    String[] remainingArgs = cmd.getArgs();
+    if (remainingArgs.length == 0) {
+      System.out.println("No command specified. Use: build-all, build <name>, or build-updated");
+      return;
+    }
+    
+    String command = remainingArgs[0];
+    switch (command) {
+      case "build-all":
+        buildAll();
+        break;
+      case "build":
+        if (remainingArgs.length < 2) {
+          System.out.println("Please specify name for build command");
+          return;
+        }
+        build(remainingArgs[1]);
+        break;
+      case "build-updated":
+        buildUpdated();
+        break;
+      default:
+        System.out.println("Unknown command: " + command);
+    }
+  }
+  
+  private void buildAll() {
+    setup();
+    
+    log.info("Building all images");
+    builderService.buildAll();
+    
+    configLoaderService.setLastBuildConfig(lastBuildConfig);
+  }
+  
+  private void build(String name) {
+    setup();
+    
+    log.info("Building %s image".formatted(name));
+    builderService.build(name);
+    
+    configLoaderService.setLastBuildConfig(lastBuildConfig);
+  }
+  
+  private void buildUpdated() {
+    setup();
+    
+    log.info("Building updated images");
+    builderService.buildUpdated();
+    
+    configLoaderService.setLastBuildConfig(lastBuildConfig);
   }
 }
