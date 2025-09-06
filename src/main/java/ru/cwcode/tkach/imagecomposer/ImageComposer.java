@@ -143,7 +143,6 @@ public class ImageComposer {
   private void build(String name) {
     setup();
     
-    log.info("Building %s image".formatted(name));
     builderService.build(name);
     
     configLoaderService.setLastBuildConfig(lastBuildConfig);

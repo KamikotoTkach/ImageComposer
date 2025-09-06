@@ -26,6 +26,8 @@ import lombok.extern.java.Log;
 import ru.cwcode.tkach.imagecomposer.config.ImagesConfig;
 import ru.cwcode.tkach.imagecomposer.data.Image;
 
+import java.util.Optional;
+
 @RequiredArgsConstructor
 @Log
 public class BuilderService {
@@ -48,7 +50,7 @@ public class BuilderService {
   }
   
   public void build(String name) {
-    Image image = imagesConfig.getImages().get(name);
+    Image image = Optional.ofNullable(imagesConfig.getImages().get(name)).orElseThrow(() -> new RuntimeException("No such image"));
     
     imageBuilderService.build(name, image);
     
