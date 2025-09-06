@@ -15,6 +15,21 @@
 
 ### 1. Создать конфиги
 
+
+**images.yml**
+
+```yaml
+images:
+  my-app:latest:
+    image: eclipse-temurin:17-jre
+    components: [app] # из components.yml
+    entrypoint: ["java", "-jar", "/app/app.jar"]
+    expose: ["8080/tcp"]
+    env:
+      env-key: env-value
+    deploy: local # из deploy.yml
+```
+
 **components.yml**
 
 ```yaml
@@ -24,20 +39,7 @@ components:
       - from: build/app.jar
         to: /app/app.jar
         order: 1
-```
-
-**images.yml**
-
-```yaml
-images:
-  my-app:latest:
-    image: eclipse-temurin:17-jre
-    components: [app]
-    entrypoint: ["java", "-jar", "/app/app.jar"]
-    expose: ["8080/tcp"]
-    env:
-      env-key: env-value
-    deploy: local
+# если нет, то просто components: {}
 ```
 
 **deploy.yml**
@@ -64,15 +66,30 @@ credentials:
   "registry.example.com/":
     username: "user"
     password: "pass"
+# если нет, то просто credentials: {}
+```
+
+**last_build.yml** (для обновления образов)
+
+```yaml
+last_build: {}
 ```
 
 
 ### 2. Запуск
 
+Собрать все образы:
 ```bash
-java -jar image-composer.jar ./config/
+java -jar image-composer.jar -d working_directory build-all
 ```
-
+Собрать обновлённые образы:
+```bash
+java -jar image-composer.jar -d working_directory build-updated
+```
+Собрать образ `someImage`:
+```bash
+java -jar image-composer.jar -d working_directory build someImage
+```
 
 ## Сценарии
 
