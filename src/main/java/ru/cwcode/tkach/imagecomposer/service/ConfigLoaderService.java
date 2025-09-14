@@ -38,9 +38,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Log
 public class ConfigLoaderService {
+  private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([\\w.]+)}");
   protected final ObjectMapper mapper;
   protected final String basedir;
   
@@ -66,28 +69,55 @@ public class ConfigLoaderService {
   }
   
   @SneakyThrows
+  public <T> T loadConfig(String fileName, Class<T> type) {
+    Path path = Path.of(basedir, fileName);
+    
+    if (Files.notExists(path)) {
+      Files.createDirectories(path.getParent());
+      String defaultValue = mapper.writeValueAsString(type.getConstructor().newInstance());
+      Files.writeString(path, defaultValue, StandardOpenOption.CREATE_NEW);
+    }
+    
+    String raw = Files.readString(path);
+    
+    Matcher matcher = PLACEHOLDER_PATTERN.matcher(raw);
+    StringBuilder result = new StringBuilder();
+    
+    while (matcher.find()) {
+      String envKey = matcher.group(1);
+      String envValue = System.getenv(envKey);
+      
+      matcher.appendReplacement(result, envValue != null ? Matcher.quoteReplacement(envValue) : matcher.group(0));
+    }
+    
+    matcher.appendTail(result);
+    
+    return mapper.readValue(result.toString(), type);
+  }
+  
+  @SneakyThrows
   public ComponentConfig getComponentConfig() {
-    return mapper.readValue(Path.of(basedir, "components.yml").toFile(), ComponentConfig.class);
+    return loadConfig("components.yml", ComponentConfig.class);
   }
   
   @SneakyThrows
   public LastBuildConfig getLastBuildConfig() {
-    return mapper.readValue(Path.of(basedir, "last_build.yml").toFile(), LastBuildConfig.class);
+    return loadConfig("last_build.yml", LastBuildConfig.class);
   }
   
   @SneakyThrows
   public DeployConfig getDeployConfig() {
-    return mapper.readValue(Path.of(basedir, "deploy.yml").toFile(), DeployConfig.class);
+    return loadConfig("deploy.yml", DeployConfig.class);
   }
   
   @SneakyThrows
   public CredentialsConfig getCredentialsConfig() {
-    return mapper.readValue(Path.of(basedir, "credentials.yml").toFile(), CredentialsConfig.class);
+    return loadConfig("credentials.yml", CredentialsConfig.class);
   }
   
   @SneakyThrows
   public ImagesConfig getImagesConfig() {
-    return mapper.readValue(Path.of(basedir, "images.yml").toFile(), ImagesConfig.class);
+    return loadConfig("images.yml", ImagesConfig.class);
   }
   
   public void setLastBuildConfig(LastBuildConfig lastBuildConfig) {
