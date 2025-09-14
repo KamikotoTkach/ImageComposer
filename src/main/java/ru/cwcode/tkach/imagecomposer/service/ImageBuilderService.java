@@ -31,6 +31,7 @@ import ru.cwcode.tkach.imagecomposer.data.ComponentItem;
 import ru.cwcode.tkach.imagecomposer.data.Image;
 import ru.cwcode.tkach.imagecomposer.data.deploy.Deploy;
 
+import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Comparator;
@@ -76,7 +77,12 @@ public class ImageBuilderService {
                                           .toList();
     
     for (ComponentItem file : files) {
-      builder.addLayer(List.of(Path.of(basedir, file.getFrom())), file.getTo());
+      Path path = Path.of(basedir, file.getFrom());
+      if (!path.toFile().exists()) {
+        throw new FileNotFoundException("Cannot find file " + path);
+      }
+      
+      builder.addLayer(List.of(path), file.getTo());
     }
     
     Deploy deploy = deployConfig.getDeploys().get(image.getDeploy());
