@@ -43,7 +43,7 @@ import java.util.regex.Pattern;
 
 @Log
 public class ConfigLoaderService {
-  private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([\\w.]+)}");
+  private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([\\w.]+)(?::([^}]*))?}");
   protected final ObjectMapper mapper;
   protected final String basedir;
   
@@ -79,15 +79,27 @@ public class ConfigLoaderService {
     }
     
     String raw = Files.readString(path);
-    
     Matcher matcher = PLACEHOLDER_PATTERN.matcher(raw);
     StringBuilder result = new StringBuilder();
     
     while (matcher.find()) {
       String envKey = matcher.group(1);
+      String defaultValue = matcher.group(2);
       String envValue = System.getenv(envKey);
       
-      matcher.appendReplacement(result, envValue != null ? Matcher.quoteReplacement(envValue) : matcher.group(0));
+      log.info("Founded env " + envKey + " with default value " + defaultValue + ". Env value is " + envValue);
+      
+      String replacement;
+      if (envValue != null) {
+        replacement = envValue;
+      } else if (defaultValue != null) {
+        replacement = defaultValue;
+      } else {
+        replacement = matcher.group(0);
+      }
+      
+      String safeReplacement = Matcher.quoteReplacement(replacement);
+      matcher.appendReplacement(result, safeReplacement);
     }
     
     matcher.appendTail(result);
