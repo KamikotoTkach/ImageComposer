@@ -34,6 +34,7 @@ import ru.cwcode.tkach.imagecomposer.data.deploy.Deploy;
 import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -50,7 +51,7 @@ public class ImageBuilderService {
   public void build(String targetImage, Image image) {
     log.info("Building image " + targetImage);
     
-    Set<Component> components = dependencyResolverService.resolve(image);
+    Collection<Component> components = dependencyResolverService.resolve(image).values();
     
     JibContainerBuilder builder;
     if (image.getImage().startsWith("local/")) {
@@ -88,6 +89,7 @@ public class ImageBuilderService {
     Deploy deploy = deployConfig.getDeploys().get(image.getDeploy());
     
     JibContainer container = builder.containerize(deploy.containerizer(targetImage)
+                                                        .setAlwaysCacheBaseImage(true)
                                                         .addEventHandler(LogEvent.class, logEvent -> System.out.println(logEvent.getLevel() + ": " + logEvent.getMessage())));
     
     log.info("Image %s built".formatted(targetImage));

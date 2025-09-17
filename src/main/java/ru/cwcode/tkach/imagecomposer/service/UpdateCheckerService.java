@@ -22,34 +22,85 @@
 package ru.cwcode.tkach.imagecomposer.service;
 
 import lombok.RequiredArgsConstructor;
-import ru.cwcode.tkach.imagecomposer.config.LastBuildConfig;
+import lombok.SneakyThrows;
+import ru.cwcode.tkach.imagecomposer.config.BuildDataConfig;
 import ru.cwcode.tkach.imagecomposer.data.Component;
 import ru.cwcode.tkach.imagecomposer.data.ComponentItem;
 import ru.cwcode.tkach.imagecomposer.data.Image;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 
 @RequiredArgsConstructor
 public class UpdateCheckerService {
   final DependencyResolverService dependencyResolverService;
-  final LastBuildConfig lastBuildConfig;
+  final BuildDataConfig buildDataConfig;
   final String workingDirectory;
+  final ConfigLoaderService configLoaderService;
   
-  public void updateBuildTime(String name) {
-    lastBuildConfig.getLastBuild().put(name, System.currentTimeMillis());
+  @SneakyThrows
+  public void updateBuildData(String name, Image image) {
+    buildDataConfig.getLastBuild().put(name, System.currentTimeMillis());
+    
+    String imageChecksum = sha256(configLoaderService.asString(image));
+    buildDataConfig.getImagesChecksums().put(name, imageChecksum);
+    
+    dependencyResolverService.resolve(image).forEach((s, component) -> {
+      String componentChecksum = sha256(configLoaderService.asString(component));
+      buildDataConfig.getComponentsChecksums().put(s, componentChecksum);
+    });
+  }
+  
+  public boolean isImageChecksumMatch(String name, Image image) {
+    return buildDataConfig.getImagesChecksums().getOrDefault(name, "").equals(sha256(configLoaderService.asString(image)));
+  }
+  
+  public boolean isComponentChecksumMatch(String name, Component component) {
+    return buildDataConfig.getComponentsChecksums().getOrDefault(name, "").equals(sha256(configLoaderService.asString(component)));
   }
   
   public boolean isUpdated(String name, Image image) {
-    Long lastUpdate = lastBuildConfig.getLastBuild().getOrDefault(name, 0L);
+    if (!isImageChecksumMatch(name, image)) {
+      return true;
+    }
     
-    for (Component component : dependencyResolverService.resolve(image)) {
-      for (ComponentItem item : component.getItems()) {
+    Long lastUpdate = buildDataConfig.getLastBuild().getOrDefault(name, 0L);
+    
+    for (var component : dependencyResolverService.resolve(image).entrySet()) {
+      if (!isComponentChecksumMatch(component.getKey(), component.getValue())) return false;
+      
+      for (ComponentItem item : component.getValue().getItems()) {
         File file = Path.of(workingDirectory).resolve(item.getFrom()).toFile();
-        if (file.lastModified() > lastUpdate) return true;
+        
+        if (getLastModifiedRecursively(file) > lastUpdate) return true;
       }
     }
     
     return false;
+  }
+  
+  private long getLastModifiedRecursively(File file) {
+    long lastModified = file.lastModified();
+    
+    if (file.isDirectory()) {
+      File[] files = file.listFiles();
+      if (files == null) return lastModified;
+      
+      for (File listFile : files) {
+        lastModified = Math.min(lastModified, getLastModifiedRecursively(listFile));
+      }
+    }
+    
+    return lastModified;
+  }
+  
+  @SneakyThrows
+  private static String sha256(String string) {
+    MessageDigest md = MessageDigest.getInstance("SHA-256");
+    byte[] digest = md.digest(string.getBytes(StandardCharsets.UTF_8));
+    return HexFormat.of().formatHex(digest);
   }
 }

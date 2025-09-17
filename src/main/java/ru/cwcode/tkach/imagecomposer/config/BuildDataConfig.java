@@ -27,6 +27,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Getter
-public class LastBuildConfig {
+public class BuildDataConfig {
   Map<String, Long> lastBuild = new HashMap<>();
+  Map<String, String> imagesChecksums = new HashMap<>();
+  Map<String, String> componentsChecksums = new HashMap<>();
 }

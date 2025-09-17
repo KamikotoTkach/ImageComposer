@@ -113,8 +113,8 @@ public class ConfigLoaderService {
   }
   
   @SneakyThrows
-  public LastBuildConfig getLastBuildConfig() {
-    return loadConfig("last_build.yml", LastBuildConfig.class);
+  public BuildDataConfig getLastBuildConfig() {
+    return loadConfig("build_data.yml", BuildDataConfig.class);
   }
   
   @SneakyThrows
@@ -132,9 +132,14 @@ public class ConfigLoaderService {
     return loadConfig("images.yml", ImagesConfig.class);
   }
   
-  public void setLastBuildConfig(LastBuildConfig lastBuildConfig) {
+  @SneakyThrows
+  public String asString(Object o) {
+    return mapper.writeValueAsString(o);
+  }
+  
+  public void setLastBuildConfig(BuildDataConfig buildDataConfig) {
     try {
-      Files.write(Path.of(basedir, "last_build.yml"), mapper.writeValueAsString(lastBuildConfig).getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING);
+      Files.write(Path.of(basedir, "build_data.yml"), mapper.writeValueAsString(buildDataConfig).getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING);
     } catch (IOException e) {
       log.warning("Cannot save last build config: " + e.getMessage());
     }

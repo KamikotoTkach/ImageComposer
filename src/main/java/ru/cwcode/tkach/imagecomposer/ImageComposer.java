@@ -35,7 +35,7 @@ import java.nio.file.Path;
 @Getter
 public class ImageComposer {
   ConfigLoaderService configLoaderService;
-  LastBuildConfig lastBuildConfig;
+  BuildDataConfig buildDataConfig;
   ComponentConfig componentConfig;
   ImagesConfig imagesConfig;
   DeployConfig deployConfig;
@@ -61,7 +61,7 @@ public class ImageComposer {
   public void setup() {
     configLoaderService = new ConfigLoaderService(workingDirectory);
     
-    lastBuildConfig = configLoaderService.getLastBuildConfig();
+    buildDataConfig = configLoaderService.getLastBuildConfig();
     componentConfig = configLoaderService.getComponentConfig();
     imagesConfig = configLoaderService.getImagesConfig();
     deployConfig = configLoaderService.getDeployConfig();
@@ -70,7 +70,7 @@ public class ImageComposer {
     credentialsService = new CredentialsService(credentialsConfig);
     dependencyResolverService = new DependencyResolverService(componentConfig);
     imageBuilderService = new ImageBuilderService(deployConfig, dependencyResolverService, credentialsService, workingDirectory);
-    updateCheckerService = new UpdateCheckerService(dependencyResolverService, lastBuildConfig, workingDirectory);
+    updateCheckerService = new UpdateCheckerService(dependencyResolverService, buildDataConfig, workingDirectory, configLoaderService);
     builderService = new BuilderService(imagesConfig, imageBuilderService, updateCheckerService);
   }
   
@@ -137,7 +137,7 @@ public class ImageComposer {
     log.info("Building all images");
     builderService.buildAll();
     
-    configLoaderService.setLastBuildConfig(lastBuildConfig);
+    configLoaderService.setLastBuildConfig(buildDataConfig);
   }
   
   private void build(String name) {
@@ -145,7 +145,7 @@ public class ImageComposer {
     
     builderService.build(name);
     
-    configLoaderService.setLastBuildConfig(lastBuildConfig);
+    configLoaderService.setLastBuildConfig(buildDataConfig);
   }
   
   private void buildUpdated() {
@@ -154,6 +154,6 @@ public class ImageComposer {
     log.info("Building updated images");
     builderService.buildUpdated();
     
-    configLoaderService.setLastBuildConfig(lastBuildConfig);
+    configLoaderService.setLastBuildConfig(buildDataConfig);
   }
 }

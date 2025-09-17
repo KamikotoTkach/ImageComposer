@@ -41,7 +41,7 @@ public class BuilderService {
     imagesConfig.getImages().forEach((targetImage, image) -> {
       try {
         imageBuilderService.build(targetImage, image);
-        updateCheckerService.updateBuildTime(targetImage);
+        updateCheckerService.updateBuildData(targetImage, image);
       } catch (Exception e) {
         log.warning("Exception during image %s build: %s".formatted(targetImage, e.getMessage()));
         e.printStackTrace();
@@ -54,7 +54,7 @@ public class BuilderService {
     
     imageBuilderService.build(name, image);
     
-    updateCheckerService.updateBuildTime(name);
+    updateCheckerService.updateBuildData(name, image);
   }
   
   public void buildUpdated() {
@@ -62,7 +62,7 @@ public class BuilderService {
       try {
         if (updateCheckerService.isUpdated(targetImage, image)) {
           imageBuilderService.build(targetImage, image);
-          updateCheckerService.updateBuildTime(targetImage);
+          updateCheckerService.updateBuildData(targetImage, image);
         }
       } catch (Exception e) {
         log.warning("Exception during image %s build: %s".formatted(targetImage, e.getMessage()));

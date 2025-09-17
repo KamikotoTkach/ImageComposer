@@ -26,27 +26,45 @@ import ru.cwcode.tkach.imagecomposer.config.ComponentConfig;
 import ru.cwcode.tkach.imagecomposer.data.Component;
 import ru.cwcode.tkach.imagecomposer.data.Image;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class DependencyResolverService {
   final ComponentConfig componentConfig;
   
-  public Set<Component> resolve(Set<Component> dependencies) {
-    Set<Component> resolvedDependencies = dependencies.stream()
-                                                      .flatMap(d -> d.getDependencies().stream())
-                                                      .map(e -> componentConfig.getComponents().get(e))
-                                                      .collect(Collectors.toCollection(HashSet::new));
-    resolvedDependencies.addAll(dependencies);
+  public Map<String, Component> resolve(Map<String, Component> dependencies) {
+    Map<String, Component> resolvedDependencies =
+      dependencies.values().stream()
+                  .flatMap(d -> d.getDependencies().stream())
+                  .filter(Objects::nonNull)
+                  .collect(Collectors.toMap(
+                    c -> c,
+                    c -> componentConfig.getComponents().get(c),
+                    (a, b) -> a,
+                    HashMap::new));
     
-    if (dependencies.containsAll(resolvedDependencies)) return resolvedDependencies;
+    resolvedDependencies.putAll(dependencies);
+    
+    if (dependencies.keySet().containsAll(resolvedDependencies.keySet())) {
+      return resolvedDependencies;
+    }
     
     return resolve(resolvedDependencies);
   }
   
-  public Set<Component> resolve(Image image) {
-    return resolve(image.getComponents().stream().map(e -> componentConfig.getComponents().get(e)).collect(Collectors.toSet()));
+  public Map<String, Component> resolve(Image image) {
+    Map<String, Component> initial =
+      image.getComponents().stream()
+           .collect(Collectors.toMap(
+             c -> c,
+             c -> componentConfig.getComponents().get(c),
+             (a, b) -> a,
+             HashMap::new));
+    
+    return resolve(initial);
   }
 }
+
