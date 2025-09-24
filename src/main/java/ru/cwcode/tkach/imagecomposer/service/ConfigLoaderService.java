@@ -133,6 +133,11 @@ public class ConfigLoaderService {
   }
   
   @SneakyThrows
+  public NotifyConfig getNotifyConfig() {
+    return loadConfig("notify.yml", NotifyConfig.class);
+  }
+  
+  @SneakyThrows
   public String asString(Object o) {
     return mapper.writeValueAsString(o);
   }

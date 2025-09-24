@@ -30,6 +30,7 @@ import ru.cwcode.tkach.imagecomposer.service.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.logging.Level;
 
 @Log
 @Getter
@@ -40,11 +41,13 @@ public class ImageComposer {
   ImagesConfig imagesConfig;
   DeployConfig deployConfig;
   CredentialsConfig credentialsConfig;
+  NotifyConfig notifyConfig;
   CredentialsService credentialsService;
   DependencyResolverService dependencyResolverService;
   ImageBuilderService imageBuilderService;
   BuilderService builderService;
   UpdateCheckerService updateCheckerService;
+  LogService logService;
   
   String workingDirectory;
   
@@ -66,12 +69,14 @@ public class ImageComposer {
     imagesConfig = configLoaderService.getImagesConfig();
     deployConfig = configLoaderService.getDeployConfig();
     credentialsConfig = configLoaderService.getCredentialsConfig();
+    notifyConfig = configLoaderService.getNotifyConfig();
     
+    logService = new LogService(notifyConfig);
     credentialsService = new CredentialsService(credentialsConfig);
     dependencyResolverService = new DependencyResolverService(componentConfig);
-    imageBuilderService = new ImageBuilderService(deployConfig, dependencyResolverService, credentialsService, workingDirectory);
-    updateCheckerService = new UpdateCheckerService(dependencyResolverService, buildDataConfig, workingDirectory, configLoaderService);
-    builderService = new BuilderService(imagesConfig, imageBuilderService, updateCheckerService);
+    imageBuilderService = new ImageBuilderService(deployConfig, dependencyResolverService, credentialsService, workingDirectory, logService);
+    updateCheckerService = new UpdateCheckerService(dependencyResolverService, buildDataConfig, workingDirectory, configLoaderService, logService);
+    builderService = new BuilderService(imagesConfig, imageBuilderService, updateCheckerService, logService);
   }
   
   private void start(String[] args) throws IOException, org.apache.commons.cli.ParseException {
@@ -134,10 +139,11 @@ public class ImageComposer {
   private void buildAll() {
     setup();
     
-    log.info("Building all images");
+    logService.log(Level.FINE, "Building all images");
     builderService.buildAll();
     
     configLoaderService.setLastBuildConfig(buildDataConfig);
+    logService.send();
   }
   
   private void build(String name) {
@@ -146,14 +152,16 @@ public class ImageComposer {
     builderService.build(name);
     
     configLoaderService.setLastBuildConfig(buildDataConfig);
+    logService.send();
   }
   
   private void buildUpdated() {
     setup();
     
-    log.info("Building updated images");
+    logService.log(Level.FINE, "Building updated images");
     builderService.buildUpdated();
     
     configLoaderService.setLastBuildConfig(buildDataConfig);
+    logService.send();
   }
 }

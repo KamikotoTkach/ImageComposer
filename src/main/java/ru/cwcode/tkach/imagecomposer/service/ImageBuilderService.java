@@ -24,7 +24,6 @@ package ru.cwcode.tkach.imagecomposer.service;
 import com.google.cloud.tools.jib.api.*;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.extern.java.Log;
 import ru.cwcode.tkach.imagecomposer.config.DeployConfig;
 import ru.cwcode.tkach.imagecomposer.data.Component;
 import ru.cwcode.tkach.imagecomposer.data.ComponentItem;
@@ -37,19 +36,19 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
+import java.util.logging.Level;
 
-@Log
 @RequiredArgsConstructor
 public class ImageBuilderService {
   final DeployConfig deployConfig;
   final DependencyResolverService dependencyResolverService;
   final CredentialsService credentialsService;
   final String basedir;
+  final LogService logService;
   
   @SneakyThrows
   public void build(String targetImage, Image image) {
-    log.info("Building image " + targetImage);
+    logService.log(Level.INFO, "Building image " + targetImage);
     
     Collection<Component> components = dependencyResolverService.resolve(image).values();
     
@@ -92,6 +91,6 @@ public class ImageBuilderService {
                                                         .setAlwaysCacheBaseImage(true)
                                                         .addEventHandler(LogEvent.class, logEvent -> System.out.println(logEvent.getLevel() + ": " + logEvent.getMessage())));
     
-    log.info("Image %s built".formatted(targetImage));
+    logService.log(Level.FINE, "Image %s built".formatted(targetImage));
   }
 }

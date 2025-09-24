@@ -27,6 +27,7 @@ import ru.cwcode.tkach.imagecomposer.config.ImagesConfig;
 import ru.cwcode.tkach.imagecomposer.data.Image;
 
 import java.util.Optional;
+import java.util.logging.Level;
 
 @RequiredArgsConstructor
 @Log
@@ -34,16 +35,17 @@ public class BuilderService {
   final ImagesConfig imagesConfig;
   final ImageBuilderService imageBuilderService;
   final UpdateCheckerService updateCheckerService;
+  final LogService logService;
   
   public void buildAll() {
-    log.info("Building images");
+    logService.log(Level.INFO, "Building images");
     
     imagesConfig.getImages().forEach((targetImage, image) -> {
       try {
         imageBuilderService.build(targetImage, image);
         updateCheckerService.updateBuildData(targetImage, image);
       } catch (Exception e) {
-        log.warning("Exception during image %s build: %s".formatted(targetImage, e.getMessage()));
+        logService.log(Level.WARNING, "Exception during image %s build: %s".formatted(targetImage, e.getMessage()));
         e.printStackTrace();
       }
     });
@@ -65,7 +67,7 @@ public class BuilderService {
           updateCheckerService.updateBuildData(targetImage, image);
         }
       } catch (Exception e) {
-        log.warning("Exception during image %s build: %s".formatted(targetImage, e.getMessage()));
+        logService.log(Level.WARNING, ("Exception during image %s build: %s".formatted(targetImage, e.getMessage())));
         e.printStackTrace();
       }
     });

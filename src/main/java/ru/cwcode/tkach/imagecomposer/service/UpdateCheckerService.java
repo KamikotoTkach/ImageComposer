@@ -34,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.logging.Level;
 
 @RequiredArgsConstructor
 @Log
@@ -42,6 +43,7 @@ public class UpdateCheckerService {
   final BuildDataConfig buildDataConfig;
   final String workingDirectory;
   final ConfigLoaderService configLoaderService;
+  final LogService logService;
   
   @SneakyThrows
   public void updateBuildData(String name, Image image) {
@@ -60,7 +62,7 @@ public class UpdateCheckerService {
     String checksum = buildDataConfig.getImagesChecksums().getOrDefault(name, "");
     boolean match = checksum.equals(sha256(configLoaderService.asString(image)));
     
-    log.info("Image " + name + " checksum " + (match ? "match" : "does not match"));
+    logService.log(Level.INFO, "Image " + name + " checksum " + (match ? "match" : "does not match"));
     
     return match;
   }
@@ -71,7 +73,7 @@ public class UpdateCheckerService {
   
   public boolean isUpdated(String name, Image image) {
     if (!isImageChecksumMatch(name, image)) {
-      log.info("Image " + name + " is updated due to image declaration is updated");
+      logService.log(Level.WARNING, "Image " + name + " is updated due to image declaration is updated");
       
       return true;
     }
@@ -80,7 +82,7 @@ public class UpdateCheckerService {
     
     for (var component : dependencyResolverService.resolve(image).entrySet()) {
       if (!isComponentChecksumMatch(component.getKey(), component.getValue())) {
-        log.info("Image " + name + " is updated due to " + component.getKey() + " updated");
+        logService.log(Level.WARNING, "Image " + name + " is updated due to " + component.getKey() + " updated");
         return true;
       }
       
@@ -88,14 +90,14 @@ public class UpdateCheckerService {
         File file = Path.of(workingDirectory).resolve(item.getFrom()).toFile();
         
         if (getLastModifiedRecursively(file) > lastUpdate) {
-          log.info("Image " + name + " is updated due to " + file + " of " + component.getKey() + " is updated");
+          logService.log(Level.WARNING, "Image " + name + " is updated due to " + file + " of " + component.getKey() + " is updated");
           
           return true;
         }
       }
     }
     
-    log.info("Image " + name + " is not updated");
+    logService.log(Level.FINE, "Image " + name + " is not updated");
     
     return false;
   }
