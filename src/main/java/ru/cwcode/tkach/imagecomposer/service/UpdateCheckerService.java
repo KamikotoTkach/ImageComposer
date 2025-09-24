@@ -23,6 +23,7 @@ package ru.cwcode.tkach.imagecomposer.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.java.Log;
 import ru.cwcode.tkach.imagecomposer.config.BuildDataConfig;
 import ru.cwcode.tkach.imagecomposer.data.Component;
 import ru.cwcode.tkach.imagecomposer.data.ComponentItem;
@@ -35,6 +36,7 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 
 @RequiredArgsConstructor
+@Log
 public class UpdateCheckerService {
   final DependencyResolverService dependencyResolverService;
   final BuildDataConfig buildDataConfig;
@@ -55,7 +57,12 @@ public class UpdateCheckerService {
   }
   
   public boolean isImageChecksumMatch(String name, Image image) {
-    return buildDataConfig.getImagesChecksums().getOrDefault(name, "").equals(sha256(configLoaderService.asString(image)));
+    String checksum = buildDataConfig.getImagesChecksums().getOrDefault(name, "");
+    boolean match = checksum.equals(sha256(configLoaderService.asString(image)));
+    
+    log.info("Image " + name + " checksum " + (match ? "match" : "does not match"));
+    
+    return match;
   }
   
   public boolean isComponentChecksumMatch(String name, Component component) {
@@ -64,20 +71,31 @@ public class UpdateCheckerService {
   
   public boolean isUpdated(String name, Image image) {
     if (!isImageChecksumMatch(name, image)) {
+      log.info("Image " + name + " is updated due to image declaration is updated");
+      
       return true;
     }
     
     Long lastUpdate = buildDataConfig.getLastBuild().getOrDefault(name, 0L);
     
     for (var component : dependencyResolverService.resolve(image).entrySet()) {
-      if (!isComponentChecksumMatch(component.getKey(), component.getValue())) return false;
+      if (!isComponentChecksumMatch(component.getKey(), component.getValue())) {
+        log.info("Image " + name + " is updated due to " + component.getKey() + " updated");
+        return true;
+      }
       
       for (ComponentItem item : component.getValue().getItems()) {
         File file = Path.of(workingDirectory).resolve(item.getFrom()).toFile();
         
-        if (getLastModifiedRecursively(file) > lastUpdate) return true;
+        if (getLastModifiedRecursively(file) > lastUpdate) {
+          log.info("Image " + name + " is updated due to " + file + " of " + component.getKey() + " is updated");
+          
+          return true;
+        }
       }
     }
+    
+    log.info("Image " + name + " is not updated");
     
     return false;
   }
@@ -90,7 +108,7 @@ public class UpdateCheckerService {
       if (files == null) return lastModified;
       
       for (File listFile : files) {
-        lastModified = Math.min(lastModified, getLastModifiedRecursively(listFile));
+        lastModified = Math.max(lastModified, getLastModifiedRecursively(listFile));
       }
     }
     
