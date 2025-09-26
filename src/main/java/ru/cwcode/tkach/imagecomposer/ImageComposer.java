@@ -142,6 +142,7 @@ public class ImageComposer {
     logService.log(Level.FINE, "Building all images");
     builderService.buildAll();
     
+    updateCheckerService.runOnDisableTasks();
     configLoaderService.setLastBuildConfig(buildDataConfig);
     logService.send();
   }
@@ -151,6 +152,7 @@ public class ImageComposer {
     
     builderService.build(name);
     
+    updateCheckerService.runOnDisableTasks();
     configLoaderService.setLastBuildConfig(buildDataConfig);
     logService.send();
   }
@@ -161,6 +163,7 @@ public class ImageComposer {
     logService.log(Level.FINE, "Building updated images");
     builderService.buildUpdated();
     
+    updateCheckerService.runOnDisableTasks();
     configLoaderService.setLastBuildConfig(buildDataConfig);
     logService.send();
   }

@@ -33,28 +33,36 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.logging.Level;
 
-@RequiredArgsConstructor
 @Log
+@RequiredArgsConstructor
 public class UpdateCheckerService {
   final DependencyResolverService dependencyResolverService;
   final BuildDataConfig buildDataConfig;
   final String workingDirectory;
   final ConfigLoaderService configLoaderService;
   final LogService logService;
+  final List<Runnable> onDisableTasks = new ArrayList<>();
   
-  @SneakyThrows
+  public void runOnDisableTasks() {
+    onDisableTasks.forEach(Runnable::run);
+  }
+  
   public void updateBuildData(String name, Image image) {
-    buildDataConfig.getLastBuild().put(name, System.currentTimeMillis());
-    
-    String imageChecksum = sha256(configLoaderService.asString(image));
-    buildDataConfig.getImagesChecksums().put(name, imageChecksum);
-    
-    dependencyResolverService.resolve(image).forEach((s, component) -> {
-      String componentChecksum = sha256(configLoaderService.asString(component));
-      buildDataConfig.getComponentsChecksums().put(s, componentChecksum);
+    onDisableTasks.add(() -> {
+      buildDataConfig.getLastBuild().put(name, System.currentTimeMillis());
+      
+      String imageChecksum = sha256(configLoaderService.asString(image));
+      buildDataConfig.getImagesChecksums().put(name, imageChecksum);
+      
+      dependencyResolverService.resolve(image).forEach((s, component) -> {
+        String componentChecksum = sha256(configLoaderService.asString(component));
+        buildDataConfig.getComponentsChecksums().put(s, componentChecksum);
+      });
     });
   }
   
