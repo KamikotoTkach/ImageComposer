@@ -24,6 +24,7 @@ package ru.cwcode.tkach.imagecomposer.service;
 import com.google.cloud.tools.jib.api.*;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import ru.cwcode.tkach.imagecomposer.Utils;
 import ru.cwcode.tkach.imagecomposer.config.DeployConfig;
 import ru.cwcode.tkach.imagecomposer.data.Component;
 import ru.cwcode.tkach.imagecomposer.data.ComponentItem;
@@ -73,7 +74,10 @@ public class ImageBuilderService {
     
     List<ComponentItem> files = components.stream()
                                           .flatMap(x -> x.getItems().stream())
-                                          .sorted(Comparator.comparingInt(ComponentItem::getOrder))
+                                          .sorted(Comparator.comparingInt(ComponentItem::getOrder)
+                                                            .thenComparingLong(e->{
+                                                              return Utils.getPathSize(Path.of(basedir, e.getFrom()));
+                                                            }))
                                           .toList();
     
     for (ComponentItem file : files) {
