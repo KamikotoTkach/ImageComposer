@@ -37,7 +37,12 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RequiredArgsConstructor
 public class ImageBuilderService {
@@ -72,13 +77,26 @@ public class ImageBuilderService {
       .setCreationTime(Instant.now())
       .setExposedPorts(Ports.parse(image.getExpose()));
     
-    List<ComponentItem> files = components.stream()
-                                          .flatMap(x -> x.getItems().stream())
-                                          .sorted(Comparator.comparingInt(ComponentItem::getOrder)
-                                                            .thenComparingLong(e->{
-                                                              return Utils.getPathSize(Path.of(basedir, e.getFrom()));
-                                                            }))
+    Comparator<ComponentItem> sortCmp = Comparator.comparingInt(ComponentItem::getOrder)
+                                                  .thenComparingLong(e -> Utils.getPathSize(Path.of(basedir, e.getFrom())));
+    
+    Comparator<ComponentItem> pickCmp = Comparator.comparingInt(ComponentItem::getOrder);
+    
+    List<ComponentItem> items = components.stream()
+                                          .flatMap(c -> c.getItems().stream())
                                           .toList();
+    
+    Map<String, ComponentItem> bestByTag = items.stream()
+                                                .filter(i -> i.getTag() != null)
+                                                .collect(Collectors.toMap(
+                                                  ComponentItem::getTag,
+                                                  Function.identity(),
+                                                  BinaryOperator.maxBy(pickCmp)
+                                                ));
+    
+    List<ComponentItem> files = Stream.concat(items.stream().filter(i -> i.getTag() == null), bestByTag.values().stream())
+                                      .sorted(sortCmp)
+                                      .toList();
     
     for (ComponentItem file : files) {
       Path path = Path.of(basedir, file.getFrom());

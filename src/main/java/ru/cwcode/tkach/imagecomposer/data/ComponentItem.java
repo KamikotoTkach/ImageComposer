@@ -28,4 +28,5 @@ public class ComponentItem {
   String from;
   String to;
   int order = 1;
+  String tag = null;
 }
