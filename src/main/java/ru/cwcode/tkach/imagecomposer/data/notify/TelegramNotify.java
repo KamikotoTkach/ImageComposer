@@ -17,7 +17,7 @@ public class TelegramNotify {
   private String token = "<enter your token>";
   private String chat = "<enter your chat>";
   
-  private boolean proxyEnabled = true;
+  private boolean proxyEnabled = false;
   private String proxyHost = "127.0.0.1";
   private int proxyPort = 8080;
   
