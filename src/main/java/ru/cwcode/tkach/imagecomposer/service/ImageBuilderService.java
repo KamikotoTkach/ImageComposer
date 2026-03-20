@@ -111,7 +111,11 @@ public class ImageBuilderService {
     
     JibContainer container = builder.containerize(deploy.containerizer(targetImage)
                                                         .setAlwaysCacheBaseImage(true)
-                                                        .addEventHandler(LogEvent.class, logEvent -> System.out.println(logEvent.getLevel() + ": " + logEvent.getMessage())));
+                                                        .addEventHandler(LogEvent.class, logEvent -> {
+                                                          if (logEvent.getLevel().ordinal() <= LogEvent.Level.LIFECYCLE.ordinal()) {
+                                                            System.out.println(logEvent.getLevel() + ": " + logEvent.getMessage());
+                                                          }
+                                                        }));
     
     logService.log(Level.FINE, "Image %s built".formatted(targetImage));
   }
