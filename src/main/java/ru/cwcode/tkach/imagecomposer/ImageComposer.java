@@ -30,7 +30,10 @@ import ru.cwcode.tkach.imagecomposer.service.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 @Log
 @Getter
@@ -96,6 +99,13 @@ public class ImageComposer {
                             .desc("Show help")
                             .get());
     
+    options.addOption(Option.builder("p")
+                            .longOpt("profile")
+                            .hasArg()
+                            .argName("profiles")
+                            .desc("Build only images matching comma-separated profiles")
+                            .get());
+    
     CommandLineParser parser = new DefaultParser();
     CommandLine cmd = parser.parse(options, args);
     
@@ -117,9 +127,11 @@ public class ImageComposer {
     }
     
     String command = remainingArgs[0];
+    Set<String> profiles = parseProfiles(cmd);
+    
     switch (command) {
       case "build-all":
-        buildAll();
+        buildAll(profiles);
         break;
       case "build":
         if (remainingArgs.length < 2) {
@@ -129,18 +141,29 @@ public class ImageComposer {
         build(remainingArgs[1]);
         break;
       case "build-updated":
-        buildUpdated();
+        buildUpdated(profiles);
         break;
       default:
         System.out.println("Unknown command: " + command);
     }
   }
   
-  private void buildAll() {
+  private Set<String> parseProfiles(CommandLine cmd) {
+    if (!cmd.hasOption("profile")) {
+      return Set.of();
+    }
+    
+    return Arrays.stream(cmd.getOptionValue("profile").split(","))
+                 .map(String::trim)
+                 .filter(profile -> !profile.isEmpty())
+                 .collect(Collectors.toSet());
+  }
+  
+  private void buildAll(Set<String> profiles) {
     setup();
     
     logService.log(Level.FINE, "Building all images");
-    builderService.buildAll();
+    builderService.buildAll(profiles);
     
     updateCheckerService.runOnDisableTasks();
     configLoaderService.setLastBuildConfig(buildDataConfig);
@@ -157,11 +180,11 @@ public class ImageComposer {
     logService.send();
   }
   
-  private void buildUpdated() {
+  private void buildUpdated(Set<String> profiles) {
     setup();
     
     logService.log(Level.FINE, "Building updated images");
-    builderService.buildUpdated();
+    builderService.buildUpdated(profiles);
     
     updateCheckerService.runOnDisableTasks();
     configLoaderService.setLastBuildConfig(buildDataConfig);

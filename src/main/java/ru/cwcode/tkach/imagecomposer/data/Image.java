@@ -31,6 +31,7 @@ import java.util.Set;
 public class Image {
   String image;
   Set<String> components = Set.of();
+  Set<String> profiles = Set.of();
   Map<String, String> env = Map.of();
   List<String> entrypoint;
   List<String> expose = List.of();

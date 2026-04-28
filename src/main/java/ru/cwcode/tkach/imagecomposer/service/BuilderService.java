@@ -26,7 +26,10 @@ import lombok.extern.java.Log;
 import ru.cwcode.tkach.imagecomposer.config.ImagesConfig;
 import ru.cwcode.tkach.imagecomposer.data.Image;
 
+import java.util.Collections;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 
 @RequiredArgsConstructor
@@ -38,10 +41,18 @@ public class BuilderService {
   final LogService logService;
   
   public void buildAll() {
+    buildAll(Set.of());
+  }
+  
+  public void buildAll(Set<String> profiles) {
     logService.log(Level.INFO, "Building images");
     
     imagesConfig.getImages().forEach((targetImage, image) -> {
       try {
+        if (!matchesProfiles(image, profiles)) {
+          return;
+        }
+        
         imageBuilderService.build(targetImage, image);
         updateCheckerService.updateBuildData(targetImage, image);
       } catch (Exception e) {
@@ -60,8 +71,16 @@ public class BuilderService {
   }
   
   public void buildUpdated() {
+    buildUpdated(Set.of());
+  }
+  
+  public void buildUpdated(Set<String> profiles) {
     imagesConfig.getImages().forEach((targetImage, image) -> {
       try {
+        if (!matchesProfiles(image, profiles)) {
+          return;
+        }
+        
         if (updateCheckerService.isUpdated(targetImage, image)) {
           imageBuilderService.build(targetImage, image);
           updateCheckerService.updateBuildData(targetImage, image);
@@ -71,5 +90,18 @@ public class BuilderService {
         e.printStackTrace();
       }
     });
+  }
+  
+  private boolean matchesProfiles(Image image, Set<String> profiles) {
+    if (profiles == null || profiles.isEmpty()) {
+      return true;
+    }
+    
+    Set<String> imageProfiles = Optional.ofNullable(image.getProfiles()).orElse(Collections.emptySet());
+    return imageProfiles.stream()
+                        .filter(Objects::nonNull)
+                        .anyMatch(imageProfile -> profiles.stream()
+                                                          .filter(Objects::nonNull)
+                                                          .anyMatch(imageProfile::equalsIgnoreCase));
   }
 }
