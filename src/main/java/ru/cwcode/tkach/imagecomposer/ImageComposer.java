@@ -128,6 +128,7 @@ public class ImageComposer {
     
     String command = remainingArgs[0];
     Set<String> profiles = parseProfiles(cmd);
+    System.out.println("Profiles selected: " + profiles);
     
     switch (command) {
       case "build-all":

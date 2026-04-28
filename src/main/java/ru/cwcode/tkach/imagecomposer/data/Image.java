@@ -29,6 +29,7 @@ import java.util.Set;
 
 @Getter
 public class Image {
+  String name;
   String image;
   Set<String> components = Set.of();
   Set<String> profiles = Set.of();

@@ -54,7 +54,8 @@ public class ImageBuilderService {
   
   @SneakyThrows
   public void build(String targetImage, Image image) {
-    logService.log(Level.INFO, "Building image " + targetImage);
+    String deployImage = image.getName() == null ? targetImage : image.getName();
+    logService.log(Level.INFO, "Building image " + deployImage);
     
     Collection<Component> components = dependencyResolverService.resolve(image).values();
     
@@ -109,7 +110,7 @@ public class ImageBuilderService {
     
     Deploy deploy = deployConfig.getDeploys().get(image.getDeploy());
     
-    JibContainer container = builder.containerize(deploy.containerizer(targetImage)
+    JibContainer container = builder.containerize(deploy.containerizer(deployImage)
                                                         .setAlwaysCacheBaseImage(true)
                                                         .addEventHandler(LogEvent.class, logEvent -> {
                                                           if (logEvent.getLevel().ordinal() <= LogEvent.Level.LIFECYCLE.ordinal()) {
@@ -117,6 +118,6 @@ public class ImageBuilderService {
                                                           }
                                                         }));
     
-    logService.log(Level.FINE, "Image %s built".formatted(targetImage));
+    logService.log(Level.FINE, "Image %s built".formatted(deployImage));
   }
 }
