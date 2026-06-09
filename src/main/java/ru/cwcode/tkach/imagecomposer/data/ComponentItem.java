@@ -23,10 +23,14 @@ package ru.cwcode.tkach.imagecomposer.data;
 
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 public class ComponentItem {
   String from;
   String to;
+  List<String> include = List.of();
+  List<String> exclude = List.of();
   int order = 1;
   String tag = null;
 }

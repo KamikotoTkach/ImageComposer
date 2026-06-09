@@ -22,8 +22,11 @@
 package ru.cwcode.tkach.imagecomposer;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.util.List;
 import java.util.stream.Stream;
 
 public class Utils {
@@ -47,6 +50,47 @@ public class Utils {
       }
     } catch (IOException e) {
       return 0L;
+    }
+  }
+  
+  public static class PathFilter {
+    private final List<PathMatcher> include;
+    private final List<PathMatcher> exclude;
+    
+    private PathFilter(List<PathMatcher> include, List<PathMatcher> exclude) {
+      this.include = include;
+      this.exclude = exclude;
+    }
+    
+    public static PathFilter of(List<String> include, List<String> exclude) {
+      return new PathFilter(toMatchers(include), toMatchers(exclude));
+    }
+    
+    public boolean isEmpty() {
+      return include.isEmpty() && exclude.isEmpty();
+    }
+    
+    public boolean test(Path path) {
+      boolean included = include.isEmpty() || include.stream().anyMatch(matcher -> matcher.matches(path));
+      boolean excluded = exclude.stream().anyMatch(matcher -> matcher.matches(path));
+      
+      return included && !excluded;
+    }
+    
+    private static List<PathMatcher> toMatchers(List<String> patterns) {
+      if (patterns == null || patterns.isEmpty()) return List.of();
+      
+      return patterns.stream()
+                     .map(PathFilter::toMatcher)
+                     .toList();
+    }
+    
+    private static PathMatcher toMatcher(String pattern) {
+      if (pattern.startsWith("glob:") || pattern.startsWith("regex:")) {
+        return FileSystems.getDefault().getPathMatcher(pattern);
+      }
+      
+      return FileSystems.getDefault().getPathMatcher("glob:" + pattern);
     }
   }
 }

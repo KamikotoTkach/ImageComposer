@@ -25,18 +25,21 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.java.Log;
 import ru.cwcode.tkach.imagecomposer.config.BuildDataConfig;
+import ru.cwcode.tkach.imagecomposer.Utils;
 import ru.cwcode.tkach.imagecomposer.data.Component;
 import ru.cwcode.tkach.imagecomposer.data.ComponentItem;
 import ru.cwcode.tkach.imagecomposer.data.Image;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 @Log
 @RequiredArgsConstructor
@@ -97,7 +100,7 @@ public class UpdateCheckerService {
       for (ComponentItem item : component.getValue().getItems()) {
         File file = Path.of(workingDirectory).resolve(item.getFrom()).toFile();
         
-        if (getLastModifiedRecursively(file) > lastUpdate) {
+        if (getLastModifiedRecursively(file, item) > lastUpdate) {
           logService.log(Level.WARNING, "Image " + name + " is updated due to " + file + " of " + component.getKey() + " is updated");
           
           return true;
@@ -123,6 +126,26 @@ public class UpdateCheckerService {
     }
     
     return lastModified;
+  }
+  
+  private long getLastModifiedRecursively(File file, ComponentItem item) {
+    Utils.PathFilter pathFilter = Utils.PathFilter.of(item.getInclude(), item.getExclude());
+    if (pathFilter.isEmpty()) return getLastModifiedRecursively(file);
+    
+    Path path = file.toPath();
+    if (Files.isDirectory(path)) {
+      try (Stream<Path> walk = Files.walk(path)) {
+        return walk.filter(Files::isRegularFile)
+                   .filter(sourcePath -> pathFilter.test(path.relativize(sourcePath)))
+                   .mapToLong(sourcePath -> sourcePath.toFile().lastModified())
+                   .max()
+                   .orElse(0L);
+      } catch (Exception e) {
+        return 0L;
+      }
+    }
+    
+    return pathFilter.test(path.getFileName()) ? file.lastModified() : 0L;
   }
   
   @SneakyThrows

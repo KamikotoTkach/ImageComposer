@@ -22,6 +22,8 @@
 package ru.cwcode.tkach.imagecomposer.service;
 
 import com.google.cloud.tools.jib.api.*;
+import com.google.cloud.tools.jib.api.buildplan.AbsoluteUnixPath;
+import com.google.cloud.tools.jib.api.buildplan.FileEntriesLayer;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import ru.cwcode.tkach.imagecomposer.Utils;
@@ -32,6 +34,8 @@ import ru.cwcode.tkach.imagecomposer.data.Image;
 import ru.cwcode.tkach.imagecomposer.data.deploy.Deploy;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Collection;
@@ -105,7 +109,7 @@ public class ImageBuilderService {
         throw new FileNotFoundException("Cannot find file " + path);
       }
       
-      builder.addLayer(List.of(path), file.getTo());
+      addLayer(builder, file, path);
     }
     
     Deploy deploy = deployConfig.getDeploys().get(image.getDeploy());
@@ -119,5 +123,36 @@ public class ImageBuilderService {
                                                         }));
     
     logService.log(Level.FINE, "Image %s built".formatted(deployImage));
+  }
+  
+  private void addLayer(JibContainerBuilder builder, ComponentItem file, Path path) throws IOException {
+    Utils.PathFilter pathFilter = Utils.PathFilter.of(file.getInclude(), file.getExclude());
+    if (pathFilter.isEmpty()) {
+      builder.addLayer(List.of(path), file.getTo());
+      return;
+    }
+    
+    FileEntriesLayer.Builder layerBuilder = FileEntriesLayer.builder();
+    AbsoluteUnixPath targetPath = AbsoluteUnixPath.get(file.getTo()).resolve(path.getFileName());
+    int entries = 0;
+    
+    if (Files.isDirectory(path)) {
+      try (Stream<Path> walk = Files.walk(path)) {
+        for (Path sourcePath : walk.filter(Files::isRegularFile).toList()) {
+          Path relativePath = path.relativize(sourcePath);
+          if (pathFilter.test(relativePath)) {
+            layerBuilder.addEntry(sourcePath, targetPath.resolve(relativePath));
+            entries++;
+          }
+        }
+      }
+    } else if (pathFilter.test(path.getFileName())) {
+      layerBuilder.addEntry(path, targetPath.resolve(path.getFileName()));
+      entries++;
+    }
+    
+    if (entries > 0) {
+      builder.addFileEntriesLayer(layerBuilder.build());
+    }
   }
 }
