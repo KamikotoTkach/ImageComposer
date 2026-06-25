@@ -28,9 +28,11 @@ import java.util.List;
 @Getter
 public class ComponentItem {
   String from;
+  String content = null;
   String to;
   List<String> include = List.of();
   List<String> exclude = List.of();
   int order = 1;
   String tag = null;
+  MergeFormat merge = null;
 }
