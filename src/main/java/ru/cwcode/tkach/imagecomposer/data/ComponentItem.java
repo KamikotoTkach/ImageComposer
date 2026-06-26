@@ -35,4 +35,12 @@ public class ComponentItem {
   int order = 1;
   String tag = null;
   MergeFormat merge = null;
+  boolean runtime = false;
+
+  public static ComponentItem syntheticBase(String from, int order) {
+    ComponentItem item = new ComponentItem();
+    item.from = from;
+    item.order = order;
+    return item;
+  }
 }

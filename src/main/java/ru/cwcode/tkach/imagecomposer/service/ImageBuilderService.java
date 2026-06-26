@@ -24,6 +24,7 @@ package ru.cwcode.tkach.imagecomposer.service;
 import com.google.cloud.tools.jib.api.*;
 import com.google.cloud.tools.jib.api.buildplan.AbsoluteUnixPath;
 import com.google.cloud.tools.jib.api.buildplan.FileEntriesLayer;
+import com.google.cloud.tools.jib.api.buildplan.FilePermissions;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import ru.cwcode.tkach.imagecomposer.Utils;
@@ -42,6 +43,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,15 +96,41 @@ public class ImageBuilderService {
 
     items.forEach(this::validate);
 
+    boolean hasRuntime = items.stream().anyMatch(ComponentItem::isRuntime);
+    if (hasRuntime && (image.getEntrypoint() == null || image.getEntrypoint().isEmpty())) {
+      throw new IllegalArgumentException("Image '" + deployImage + "' has runtime-preprocessed items but no 'entrypoint' is defined");
+    }
+
     Map<String, List<ComponentItem>> groups = new LinkedHashMap<>();
     List<ComponentItem> plainItems = new ArrayList<>();
+    List<ComponentItem> dirItems = new ArrayList<>();
+    List<String> runtimeTargets = new ArrayList<>();
 
     for (ComponentItem item : items) {
       String target = finalTarget(item);
       if (target == null) {
         plainItems.add(item);
+        if (item.getContent() == null && Files.isDirectory(Path.of(basedir, item.getFrom()))) {
+          dirItems.add(item);
+        }
       } else {
         groups.computeIfAbsent(target, k -> new ArrayList<>()).add(item);
+      }
+      if (item.isRuntime()) {
+        runtimeTargets.addAll(runtimeTargets(item, target));
+      }
+    }
+
+    Set<String> mergeTargets = groups.entrySet().stream()
+                                     .filter(e -> e.getValue().stream().anyMatch(i -> i.getMerge() != null))
+                                     .map(Map.Entry::getKey)
+                                     .collect(Collectors.toSet());
+
+    Map<ComponentItem, Set<String>> dirSkips = new HashMap<>();
+    if (!mergeTargets.isEmpty()) {
+      for (ComponentItem dir : dirItems) {
+        Set<String> skip = divertDirectoryBases(dir, mergeTargets, groups);
+        if (!skip.isEmpty()) dirSkips.put(dir, skip);
       }
     }
 
@@ -117,7 +146,14 @@ public class ImageBuilderService {
         }
       }
 
-      addPlainLayers(builder, plainItems);
+      addPlainLayers(builder, plainItems, dirSkips);
+
+      if (!runtimeTargets.isEmpty()) {
+        addRuntimeLayer(builder, runtimeTargets, tempDir);
+        List<String> wrapped = new ArrayList<>(List.of("/bin/sh", "/imagecomposer/init.sh"));
+        wrapped.addAll(image.getEntrypoint());
+        builder.setEntrypoint(wrapped);
+      }
 
       Deploy deploy = deployConfig.getDeploys().get(image.getDeploy());
 
@@ -169,6 +205,50 @@ public class ImageBuilderService {
     return AbsoluteUnixPath.get(item.getTo()).resolve(path.getFileName().toString()).toString();
   }
 
+  private List<String> runtimeTargets(ComponentItem item, String singleTarget) throws IOException {
+    if (singleTarget != null) {
+      return List.of(singleTarget);
+    }
+
+    // 'from' is a directory (finalTarget returned null): enumerate target paths of contained files.
+    Path path = Path.of(basedir, item.getFrom());
+    if (!Files.isDirectory(path)) {
+      return List.of();
+    }
+
+    Utils.PathFilter pathFilter = Utils.PathFilter.of(item.getInclude(), item.getExclude());
+    AbsoluteUnixPath targetPath = AbsoluteUnixPath.get(item.getTo()).resolve(path.getFileName());
+    List<String> result = new ArrayList<>();
+    try (Stream<Path> walk = Files.walk(path)) {
+      for (Path sourcePath : walk.filter(Files::isRegularFile).toList()) {
+        Path relativePath = path.relativize(sourcePath);
+        if (pathFilter.isEmpty() || pathFilter.test(relativePath)) {
+          result.add(targetPath.resolve(relativePath).toString());
+        }
+      }
+    }
+    return result;
+  }
+
+  private void addRuntimeLayer(JibContainerBuilder builder, List<String> runtimeTargets, Path tempDir) throws IOException {
+    Path scriptFile = tempDir.resolve("init.sh");
+    try (var in = getClass().getResourceAsStream("/runtime-init.sh")) {
+      if (in == null) {
+        throw new FileNotFoundException("Bundled resource /runtime-init.sh not found on classpath");
+      }
+      Files.write(scriptFile, in.readAllBytes());
+    }
+
+    Path listFile = tempDir.resolve("runtime-files.list");
+    Files.write(listFile, (String.join("\n", runtimeTargets) + "\n").getBytes());
+
+    builder.addFileEntriesLayer(FileEntriesLayer.builder()
+                                                .addEntry(scriptFile, AbsoluteUnixPath.get("/imagecomposer/init.sh"),
+                                                          FilePermissions.fromOctalString("755"))
+                                                .addEntry(listFile, AbsoluteUnixPath.get("/imagecomposer/runtime-files.list"))
+                                                .build());
+  }
+
   private void addMergedLayer(JibContainerBuilder builder, String target, List<ComponentItem> group, Path tempFile) throws IOException {
     Set<MergeFormat> formats = group.stream()
                                     .map(ComponentItem::getMerge)
@@ -192,7 +272,29 @@ public class ImageBuilderService {
                                                 .build());
   }
 
-  private void addPlainLayers(JibContainerBuilder builder, List<ComponentItem> plainItems) throws IOException {
+  private Set<String> divertDirectoryBases(ComponentItem dir, Set<String> mergeTargets, Map<String, List<ComponentItem>> groups) throws IOException {
+    Path dirPath = Path.of(basedir, dir.getFrom());
+    AbsoluteUnixPath targetRoot = AbsoluteUnixPath.get(dir.getTo()).resolve(dirPath.getFileName());
+    Utils.PathFilter pathFilter = Utils.PathFilter.of(dir.getInclude(), dir.getExclude());
+
+    Set<String> diverted = new HashSet<>();
+    try (Stream<Path> walk = Files.walk(dirPath)) {
+      for (Path sourcePath : walk.filter(Files::isRegularFile).toList()) {
+        Path relativePath = dirPath.relativize(sourcePath);
+        if (!pathFilter.isEmpty() && !pathFilter.test(relativePath)) continue;
+
+        String target = targetRoot.resolve(relativePath).toString();
+        if (mergeTargets.contains(target)) {
+          String from = Path.of(basedir).relativize(sourcePath).toString();
+          groups.get(target).add(ComponentItem.syntheticBase(from, dir.getOrder()));
+          diverted.add(relativePath.toString());
+        }
+      }
+    }
+    return diverted;
+  }
+
+  private void addPlainLayers(JibContainerBuilder builder, List<ComponentItem> plainItems, Map<ComponentItem, Set<String>> dirSkips) throws IOException {
     Comparator<ComponentItem> sortCmp = Comparator.comparingInt(ComponentItem::getOrder)
                                                   .thenComparingLong(e -> Utils.getPathSize(Path.of(basedir, e.getFrom())));
 
@@ -216,7 +318,7 @@ public class ImageBuilderService {
         throw new FileNotFoundException("Cannot find file " + path);
       }
 
-      addLayer(builder, file, path);
+      addLayer(builder, file, path, dirSkips.getOrDefault(file, Set.of()));
     }
   }
 
@@ -232,21 +334,22 @@ public class ImageBuilderService {
     }
   }
 
-  private void addLayer(JibContainerBuilder builder, ComponentItem file, Path path) throws IOException {
+  private void addLayer(JibContainerBuilder builder, ComponentItem file, Path path, Set<String> skipRelatives) throws IOException {
     Utils.PathFilter pathFilter = Utils.PathFilter.of(file.getInclude(), file.getExclude());
-    if (pathFilter.isEmpty()) {
+    if (pathFilter.isEmpty() && skipRelatives.isEmpty()) {
       builder.addLayer(List.of(path), file.getTo());
       return;
     }
-    
+
     FileEntriesLayer.Builder layerBuilder = FileEntriesLayer.builder();
     AbsoluteUnixPath targetPath = AbsoluteUnixPath.get(file.getTo()).resolve(path.getFileName());
     int entries = 0;
-    
+
     if (Files.isDirectory(path)) {
       try (Stream<Path> walk = Files.walk(path)) {
         for (Path sourcePath : walk.filter(Files::isRegularFile).toList()) {
           Path relativePath = path.relativize(sourcePath);
+          if (skipRelatives.contains(relativePath.toString())) continue;
           if (pathFilter.test(relativePath)) {
             layerBuilder.addEntry(sourcePath, targetPath.resolve(relativePath));
             entries++;
